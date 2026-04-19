@@ -1,0 +1,191 @@
+[
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "gastei 50 com gasolina",
+    "tipo": "saida",
+    "valor": "50",
+    "categoria": "transporte",
+    "data": "2026-04-01T10:43:21.280Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "gastei 50 com gasolina",
+    "tipo": "saida",
+    "valor": "50",
+    "categoria": "transporte",
+    "data": "2026-04-01T10:43:23.583Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "gastei 50 com gasolina",
+    "tipo": "saida",
+    "valor": "50",
+    "categoria": "transporte",
+    "data": "2026-04-01T10:43:24.142Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "gastei 50 com gasolina",
+    "tipo": "saida",
+    "valor": "50",
+    "categoria": "transporte",
+    "data": "2026-04-01T10:43:24.219Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "recebi 200 no pix",
+    "tipo": "entrada",
+    "valor": "200",
+    "categoria": "pix",
+    "data": "2026-04-01T10:52:37.470Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "recebi 200 no pix",
+    "tipo": "entrada",
+    "valor": "200",
+    "categoria": "pix",
+    "data": "2026-04-01T10:53:00.312Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "recebi 200 no pix",
+    "tipo": "entrada",
+    "valor": "200",
+    "categoria": "pix",
+    "data": "2026-04-01T10:53:00.884Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "recebi 200 no pix",
+    "tipo": "entrada",
+    "valor": "200",
+    "categoria": "pix",
+    "data": "2026-04-01T10:53:00.889Z"
+  },
+  {
+    "telefone": "5599999999999",
+    "mensagem_original": "paguei 80 de aluguel",
+    "tipo": "saida",
+    "valor": "80",
+    "categoria": "moradia",
+    "data": "2026-04-01T10:53:07.006Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Gastei 25 no mercado",
+    "tipo": "saida",
+    "valor": "25",
+    "categoria": "mercado",
+    "data": "2026-04-02T11:41:13.870Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Gastei 25 no mercado",
+    "tipo": "saida",
+    "valor": "25",
+    "categoria": "mercado",
+    "data": "2026-04-02T11:41:14.686Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Gastei 25 no mercado",
+    "tipo": "saida",
+    "valor": "25",
+    "categoria": "mercado",
+    "data": "2026-04-02T12:38:50.480Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Gastei 30 no mercado",
+    "tipo": "saida",
+    "valor": "30",
+    "categoria": "mercado",
+    "data": "2026-04-02T13:00:24.781Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Recebi 70 do cliente do Goiás",
+    "tipo": "entrada",
+    "valor": "70",
+    "categoria": "cliente",
+    "data": "2026-04-02T13:01:27.859Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Comprei uma bicicleta 800 reais",
+    "tipo": "saida",
+    "valor": "800",
+    "categoria": "geral",
+    "data": "2026-04-02T14:52:39.762Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556193316925",
+    "mensagem_original": "Boa noite, eu gostei muito das xícaras",
+    "tipo": "outro",
+    "valor": null,
+    "categoria": "geral",
+    "data": "2026-04-02T21:26:22.216Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "OI",
+    "tipo": "outro",
+    "valor": null,
+    "categoria": "geral",
+    "data": "2026-04-03T14:34:25.821Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "GASTEI 12 REAIS NO POSTO DE GASOLINA",
+    "tipo": "saida",
+    "valor": "12",
+    "categoria": "transporte",
+    "data": "2026-04-03T14:34:49.565Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556193316925",
+    "mensagem_original": "Oi",
+    "tipo": "outro",
+    "valor": null,
+    "categoria": "geral",
+    "data": "2026-04-04T21:47:29.411Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556195566670",
+    "mensagem_original": "Gastei 30 na pizzaria",
+    "tipo": "saida",
+    "valor": "30",
+    "categoria": "geral",
+    "data": "2026-04-04T21:48:02.926Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556193316925",
+    "mensagem_original": "Ajuda",
+    "tipo": "outro",
+    "valor": null,
+    "categoria": "geral",
+    "data": "2026-04-05T00:44:02.484Z"
+  },
+  {
+    "origem": "webhook",
+    "telefone": "556193316925",
+    "mensagem_original": "Ajuda",
+    "tipo": "outro",
+    "valor": null,
+    "categoria": "geral",
+    "data": "2026-04-05T00:44:21.867Z"
+  }
+]

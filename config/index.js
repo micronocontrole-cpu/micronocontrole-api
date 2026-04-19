@@ -1,0 +1,49 @@
+const path = require('path');
+require('dotenv').config();
+
+const rootDir = __dirname.includes(`${path.sep}config`)
+  ? path.resolve(__dirname, '..')
+  : __dirname;
+
+const appConfig = {
+  rootDir,
+  envPath: path.join(rootDir, '.env'),
+  publicDir: path.join(rootDir, 'public'),
+  port: Number(process.env.PORT) || 3000
+};
+
+const integrationsConfig = {
+  zapi: {
+    instance: process.env.ZAPI_INSTANCE || '',
+    token: process.env.ZAPI_TOKEN || '',
+    clientToken: process.env.ZAPI_CLIENT_TOKEN || ''
+  },
+  mercadopago: {
+    accessToken: process.env.MP_ACCESS_TOKEN || '',
+    publicKey: process.env.MP_PUBLIC_KEY || ''
+  },
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+  }
+};
+
+const databaseConfig = {
+  host: process.env.DB_HOST || '',
+  port: Number(process.env.DB_PORT) || 3306,
+  database: process.env.DB_NAME || '',
+  user: process.env.DB_USER || '',
+  password: process.env.DB_PASSWORD || ''
+};
+
+function hasConfigValue(value) {
+  return Boolean(String(value || '').trim());
+}
+
+module.exports = {
+  appConfig,
+  databaseConfig,
+  hasConfigValue,
+  integrationsConfig
+};
