@@ -174,10 +174,17 @@
 
     async function carregarDashboard() {
       try {
+        const telefone = new URLSearchParams(window.location.search).get('telefone') || '';
+        const telefoneParam = encodeURIComponent(telefone);
+
+        if (!telefoneParam) {
+          throw new Error('telefone obrigatorio');
+        }
+
         const [usuariosRes, transacoesRes, resumoRes] = await Promise.all([
-          fetch('/api/usuarios'),
-          fetch('/api/transacoes'),
-          fetch('/api/resumo')
+          fetch(`/api/usuarios?telefone=${telefoneParam}`),
+          fetch(`/api/transacoes?telefone=${telefoneParam}`),
+          fetch(`/api/resumo?telefone=${telefoneParam}`)
         ]);
 
         const usuariosData = await usuariosRes.json();
