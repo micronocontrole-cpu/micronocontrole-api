@@ -10,6 +10,20 @@ const paymentService = require('../services/payment.service');
 
 const router = express.Router();
 
+function getRequiredPhone(req, res) {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+
+  if (!telefone) {
+    res.status(400).json({
+      status: 'erro',
+      mensagem: 'telefone obrigatorio'
+    });
+    return null;
+  }
+
+  return telefone;
+}
+
 router.get('/dashboard', (req, res) => {
   res.sendFile(path.join(appConfig.publicDir, 'dashboard.html'));
 });
@@ -48,6 +62,7 @@ router.get('/dados', asyncHandler(async (req, res) => {
 }));
 
 router.get('/usuarios', asyncHandler(async (req, res) => {
+  // Rota administrativa: manter apenas para uso interno, não usar no dashboard público.
   const telefone = getNormalizedPhone(req.query.telefone || '');
   const usuarios = await transactionService.getUsers(telefone);
 
@@ -59,7 +74,8 @@ router.get('/usuarios', asyncHandler(async (req, res) => {
 }));
 
 router.get('/transacoes', asyncHandler(async (req, res) => {
-  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const telefone = getRequiredPhone(req, res);
+  if (!telefone) return;
   const transacoes = await transactionService.getTransactionsByPhone(telefone);
 
   return res.json({
@@ -70,7 +86,8 @@ router.get('/transacoes', asyncHandler(async (req, res) => {
 }));
 
 router.get('/resumo', asyncHandler(async (req, res) => {
-  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const telefone = getRequiredPhone(req, res);
+  if (!telefone) return;
   const resumo = await transactionService.getSummaryByPhone(telefone);
 
   return res.json({
@@ -84,12 +101,11 @@ router.get('/resumo', asyncHandler(async (req, res) => {
 }));
 
 router.get('/exportar/csv', asyncHandler(async (req, res) => {
-  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const telefone = getRequiredPhone(req, res);
+  if (!telefone) return;
   const transacoes = await transactionService.getTransactionsByPhone(telefone);
   const csv = reportService.generateCsv(transacoes);
-  const fileName = telefone
-    ? `transacoes_${telefone}.csv`
-    : 'transacoes_micro_no_controle.csv';
+  const fileName = `transacoes_${telefone}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -109,12 +125,11 @@ router.get('/exportar/csv/:telefone', asyncHandler(async (req, res) => {
 }));
 
 router.get('/exportar/xlsx', asyncHandler(async (req, res) => {
-  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const telefone = getRequiredPhone(req, res);
+  if (!telefone) return;
   const transacoes = await transactionService.getTransactionsByPhone(telefone);
   const workbook = await reportService.generateExcel(transacoes, telefone);
-  const fileName = telefone
-    ? `transacoes_${telefone}.xlsx`
-    : 'transacoes_micro_no_controle.xlsx';
+  const fileName = `transacoes_${telefone}.xlsx`;
 
   res.setHeader(
     'Content-Type',
