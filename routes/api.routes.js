@@ -5,10 +5,12 @@ const { asyncHandler } = require('../utils/async-handler');
 const { getNormalizedPhone } = require('../utils/validation');
 const { authenticateByToken } = require('../middlewares/auth.middleware');
 const { requireActiveUser, requirePremiumPlan } = require('../middlewares/access.middleware');
+const { requireAdminSecret } = require('../middlewares/admin.middleware');
 const transactionService = require('../services/transaction.service');
 const reportService = require('../services/report.service');
 const whatsappService = require('../services/whatsapp.service');
 const paymentService = require('../services/payment.service');
+const persistenceService = require('../services/persistence.service');
 
 const router = express.Router();
 
@@ -64,6 +66,111 @@ router.get('/usuarios', asyncHandler(async (req, res) => {
     status: 'ok',
     total_usuarios: usuarios.length,
     usuarios
+  });
+}));
+
+
+router.get('/admin/usuarios', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const usuarios = await persistenceService.listUserProfiles({ phone: telefone });
+
+  return res.json({
+    status: 'ok',
+    total_usuarios: usuarios.length,
+    usuarios
+  });
+}));
+
+router.patch('/admin/usuarios/:telefone/nome', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.params.telefone || '');
+  const nome = String(req.body?.nome || '').trim();
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { nome });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'nome atualizado com sucesso',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.patch('/admin/usuarios/:telefone/plano', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.params.telefone || '');
+  const plano = String(req.body?.plano || '').trim().toLowerCase();
+
+  if (!['free', 'premium'].includes(plano)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'plano invalido. valores aceitos: free ou premium'
+    });
+  }
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { plano });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'plano atualizado com sucesso',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.patch('/admin/usuarios/:telefone/status', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.params.telefone || '');
+  const status = String(req.body?.status || '').trim().toLowerCase();
+
+  if (!['ativo', 'inativo'].includes(status)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'status invalido. valores aceitos: ativo ou inativo'
+    });
+  }
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { status });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'status atualizado com sucesso',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.post('/admin/usuarios/:telefone/regen-token', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.params.telefone || '');
+  const resultado = await persistenceService.regenerateUserTokenByPhone(telefone);
+
+  if (!resultado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'token regenerado com sucesso',
+    token: resultado.token,
+    usuario: resultado.usuario
   });
 }));
 
