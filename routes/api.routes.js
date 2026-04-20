@@ -174,6 +174,106 @@ router.post('/admin/usuarios/:telefone/regen-token', requireAdminSecret, asyncHa
   });
 }));
 
+router.get('/admin/set-plano', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const plano = String(req.query.plano || '').trim().toLowerCase();
+
+  if (!['free', 'premium'].includes(plano)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'plano invalido. valores aceitos: free ou premium'
+    });
+  }
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { plano });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'plano atualizado',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.get('/admin/set-status', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const status = String(req.query.status || '').trim().toLowerCase();
+
+  if (!['ativo', 'inativo'].includes(status)) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'status invalido. valores aceitos: ativo ou inativo'
+    });
+  }
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { status });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'status atualizado',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.get('/admin/set-nome', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const nome = String(req.query.nome || '').trim();
+
+  if (!nome) {
+    return res.status(400).json({
+      status: 'erro',
+      mensagem: 'nome obrigatorio'
+    });
+  }
+
+  const usuarioAtualizado = await persistenceService.updateUserProfileByPhone(telefone, { nome });
+
+  if (!usuarioAtualizado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'nome atualizado',
+    usuario: usuarioAtualizado
+  });
+}));
+
+router.get('/admin/regen-token', requireAdminSecret, asyncHandler(async (req, res) => {
+  const telefone = getNormalizedPhone(req.query.telefone || '');
+  const resultado = await persistenceService.regenerateUserTokenByPhone(telefone);
+
+  if (!resultado) {
+    return res.status(404).json({
+      status: 'erro',
+      mensagem: 'usuario nao encontrado'
+    });
+  }
+
+  return res.json({
+    status: 'ok',
+    mensagem: 'token regenerado',
+    token: resultado.token,
+    usuario: resultado.usuario
+  });
+}));
+
 router.get('/transacoes', authenticateByToken, requireActiveUser, asyncHandler(async (req, res) => {
   const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
 
