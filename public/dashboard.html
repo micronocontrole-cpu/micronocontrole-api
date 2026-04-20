@@ -186,12 +186,22 @@
           fetch(`/api/resumo?token=${tokenParam}`)
         ]);
 
-        if (!transacoesRes.ok || !resumoRes.ok) {
-          throw new Error('Acesso não autorizado');
-        }
-
         const transacoesData = await transacoesRes.json();
         const resumoData = await resumoRes.json();
+
+        if (!transacoesRes.ok || !resumoRes.ok) {
+          const mensagemErro = transacoesData.mensagem || resumoData.mensagem || '';
+
+          if (mensagemErro === 'usuario inativo') {
+            throw new Error('Seu acesso está inativo. Entre em contato com o suporte.');
+          }
+
+          if (mensagemErro === 'recurso disponivel apenas para premium') {
+            throw new Error('Esse recurso está disponível apenas no plano premium.');
+          }
+
+          throw new Error('Acesso não autorizado');
+        }
 
         document.getElementById('usuariosTotal').textContent = 1;
 

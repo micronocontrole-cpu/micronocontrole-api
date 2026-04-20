@@ -1,9 +1,10 @@
-﻿const express = require('express');
+const express = require('express');
 const path = require('path');
 const { appConfig } = require('../config');
 const { asyncHandler } = require('../utils/async-handler');
 const { getNormalizedPhone } = require('../utils/validation');
 const { authenticateByToken } = require('../middlewares/auth.middleware');
+const { requireActiveUser, requirePremiumPlan } = require('../middlewares/access.middleware');
 const transactionService = require('../services/transaction.service');
 const reportService = require('../services/report.service');
 const whatsappService = require('../services/whatsapp.service');
@@ -66,7 +67,7 @@ router.get('/usuarios', asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/transacoes', authenticateByToken, asyncHandler(async (req, res) => {
+router.get('/transacoes', authenticateByToken, requireActiveUser, asyncHandler(async (req, res) => {
   const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
 
   return res.json({
@@ -76,7 +77,7 @@ router.get('/transacoes', authenticateByToken, asyncHandler(async (req, res) => 
   });
 }));
 
-router.get('/resumo', authenticateByToken, asyncHandler(async (req, res) => {
+router.get('/resumo', authenticateByToken, requireActiveUser, asyncHandler(async (req, res) => {
   const resumo = await transactionService.getSummaryByPhone(req.telefone);
 
   return res.json({
@@ -90,7 +91,7 @@ router.get('/resumo', authenticateByToken, asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/exportar/csv', authenticateByToken, asyncHandler(async (req, res) => {
+router.get('/exportar/csv', authenticateByToken, requireActiveUser, requirePremiumPlan, asyncHandler(async (req, res) => {
   const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
   const csv = reportService.generateCsv(transacoes);
   const fileName = `transacoes_${req.telefone}.csv`;
@@ -101,7 +102,7 @@ router.get('/exportar/csv', authenticateByToken, asyncHandler(async (req, res) =
   return res.send('\uFEFF' + csv);
 }));
 
-router.get('/exportar/csv/:telefone', authenticateByToken, asyncHandler(async (req, res) => {
+router.get('/exportar/csv/:telefone', authenticateByToken, requireActiveUser, requirePremiumPlan, asyncHandler(async (req, res) => {
   const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
   const csv = reportService.generateCsv(transacoes);
 
@@ -111,7 +112,20 @@ router.get('/exportar/csv/:telefone', authenticateByToken, asyncHandler(async (r
   return res.send('\uFEFF' + csv);
 }));
 
-router.get('/exportar/xlsx', authenticateByToken, asyncHandler(async (req, res) => {
+
+router.get('/me', authenticateByToken, requireActiveUser, asyncHandler(async (req, res) => {
+  return res.json({
+    status: 'ok',
+    usuario: {
+      telefone: req.usuario?.telefone || '',
+      nome: req.usuario?.nome || '',
+      plano: req.usuario?.plano || 'free',
+      status: req.usuario?.status || 'ativo'
+    }
+  });
+}));
+
+router.get('/exportar/xlsx', authenticateByToken, requireActiveUser, requirePremiumPlan, asyncHandler(async (req, res) => {
   const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
   const workbook = await reportService.generateExcel(transacoes, req.telefone);
   const fileName = `transacoes_${req.telefone}.xlsx`;
