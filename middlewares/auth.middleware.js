@@ -12,7 +12,7 @@ async function authenticateByToken(req, res, next) {
 
   const usuario = await persistenceService.findUserByToken(token);
 
-  if (!usuario || usuario.status === 'inativo') {
+  if (!usuario) {
     return res.status(401).json({
       status: 'erro',
       mensagem: 'token invalido'
@@ -20,6 +20,7 @@ async function authenticateByToken(req, res, next) {
   }
 
   // Segurança: telefone da sessão vem APENAS do token validado.
+  // Regras de status/plano são aplicadas em middlewares dedicados.
   req.telefone = usuario.telefone;
   req.usuario = usuario;
 
