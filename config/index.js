@@ -19,8 +19,8 @@ const integrationsConfig = {
     clientToken: process.env.ZAPI_CLIENT_TOKEN || ''
   },
   mercadopago: {
-    accessToken: process.env.MP_ACCESS_TOKEN || '',
-    publicKey: process.env.MP_PUBLIC_KEY || ''
+    accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-5492345052446963-041009-704e7e3d7823ce601f4c07e7d9bc51e0-3298931587',
+    publicKey: process.env.MP_PUBLIC_KEY || 'APP_USR-0ecb5829-5b65-424b-b335-522242db0565'
   },
   deepseek: {
     apiKey: process.env.DEEPSEEK_API_KEY || '',
