@@ -217,6 +217,58 @@ async function listUsers({ phone = '' } = {}) {
   );
 }
 
+async function listUserProfiles({ phone = '' } = {}) {
+  const normalizedPhone = normalizePhone(phone);
+  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
+
+  if (!normalizedPhone) {
+    return users;
+  }
+
+  return users.filter(item => item.telefone === normalizedPhone);
+}
+
+async function updateUserProfileByPhone(phone, changes = {}) {
+  const normalizedPhone = normalizePhone(phone);
+
+  if (!normalizedPhone) {
+    return null;
+  }
+
+  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
+  const index = users.findIndex(item => item.telefone === normalizedPhone);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const current = users[index];
+  const updated = buildUserDefaults({
+    ...current,
+    ...changes,
+    telefone: current.telefone,
+    token: changes.token || current.token
+  });
+
+  users[index] = updated;
+  legacyUsersRepository.writeUsers(users);
+
+  return updated;
+}
+
+async function regenerateUserTokenByPhone(phone) {
+  const token = generateSecureToken();
+  const user = await updateUserProfileByPhone(phone, { token });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    usuario: user,
+    token
+  };
+}
 
 async function findUserByToken(token = '') {
   const normalizedToken = String(token || '').trim();
@@ -368,7 +420,10 @@ module.exports = {
   generateSecureToken,
   listTransactions,
   listUniquePhones,
+  listUserProfiles,
   listUsers,
+  regenerateUserTokenByPhone,
+  updateUserProfileByPhone,
   migrateLegacyJsonIfNeeded,
   registerMercadoPagoWebhook,
   savePayment
