@@ -1,12 +1,67 @@
-﻿const { normalizePhone } = require('../utils/phone');
+﻿const crypto = require('crypto');
+const { normalizePhone } = require('../utils/phone');
 const { isMysqlConfigured, testConnection } = require('../db/mysql');
 const legacyJsonRepository = require('../repositories/legacy-json.repository');
+const legacyUsersRepository = require('../repositories/legacy-users.repository');
 const usersRepository = require('../repositories/users.repository');
 const transactionsRepository = require('../repositories/transactions.repository');
 const paymentsRepository = require('../repositories/payments.repository');
 
 let mysqlAvailable = false;
 let migrationAttempted = false;
+
+
+function generateSecureToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function buildUserDefaults(user = {}) {
+  return {
+    telefone: normalizePhone(user.telefone || user.phone || ''),
+    token: String(user.token || '').trim(),
+    nome: user.nome || user.name || '',
+    plano: user.plano === 'premium' ? 'premium' : 'free',
+    status: user.status === 'inativo' ? 'inativo' : 'ativo'
+  };
+}
+
+function ensureLegacyUsersForPhones(phones = [], transactions = []) {
+  const normalizedPhones = [...new Set((phones || []).map(item => normalizePhone(item)).filter(Boolean))];
+  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
+
+  const byPhone = new Map(users.map(user => [user.telefone, user]));
+  let changed = false;
+
+  for (const phone of normalizedPhones) {
+    const existing = byPhone.get(phone) || {};
+    const transactionWithName = transactions.find(item => normalizePhone(item.telefone) === phone && item.nome);
+
+    const normalizedUser = buildUserDefaults({
+      ...existing,
+      telefone: phone,
+      nome: existing.nome || transactionWithName?.nome || ''
+    });
+
+    if (!normalizedUser.token) {
+      normalizedUser.token = generateSecureToken();
+      changed = true;
+    }
+
+    if (!existing.telefone || existing.nome !== normalizedUser.nome || existing.plano !== normalizedUser.plano || existing.status !== normalizedUser.status || existing.token !== normalizedUser.token) {
+      changed = true;
+    }
+
+    byPhone.set(phone, normalizedUser);
+  }
+
+  const result = Array.from(byPhone.values());
+
+  if (changed) {
+    legacyUsersRepository.writeUsers(result);
+  }
+
+  return result;
+}
 
 function normalizeLegacyTransaction(item = {}) {
   return {
@@ -33,7 +88,7 @@ function aggregateUsersFromTransactions(transactions = []) {
       map.set(phone, {
         telefone: phone,
         nome: item.nome || '',
-        plano: 'teste',
+        plano: 'free',
         status: 'ativo',
         primeiro_registro: item.data || item.criado_em || null,
         total_registros: 0
@@ -53,7 +108,24 @@ function aggregateUsersFromTransactions(transactions = []) {
     }
   }
 
-  return Array.from(map.values());
+  const usersFromTransactions = Array.from(map.values());
+  const usersProfile = ensureLegacyUsersForPhones(
+    usersFromTransactions.map(item => item.telefone),
+    transactions
+  );
+  const profileByPhone = new Map(usersProfile.map(item => [item.telefone, item]));
+
+  return usersFromTransactions.map(user => {
+    const profile = profileByPhone.get(user.telefone) || {};
+
+    return {
+      ...user,
+      nome: profile.nome || user.nome || '',
+      token: profile.token || '',
+      plano: profile.plano || user.plano || 'free',
+      status: profile.status || user.status || 'ativo'
+    };
+  });
 }
 
 async function initPersistence() {
@@ -143,6 +215,18 @@ async function listUsers({ phone = '' } = {}) {
   return aggregateUsersFromTransactions(
     await listTransactions({ phone: normalizedPhone })
   );
+}
+
+
+async function findUserByToken(token = '') {
+  const normalizedToken = String(token || '').trim();
+
+  if (!normalizedToken) {
+    return null;
+  }
+
+  const users = await listUsers();
+  return users.find(user => user.token === normalizedToken) || null;
 }
 
 async function listUniquePhones() {
@@ -280,6 +364,8 @@ module.exports = {
   initPersistence,
   isMysqlConfigured,
   isMysqlReady,
+  findUserByToken,
+  generateSecureToken,
   listTransactions,
   listUniquePhones,
   listUsers,

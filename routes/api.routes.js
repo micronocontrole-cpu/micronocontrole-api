@@ -3,26 +3,13 @@ const path = require('path');
 const { appConfig } = require('../config');
 const { asyncHandler } = require('../utils/async-handler');
 const { getNormalizedPhone } = require('../utils/validation');
+const { authenticateByToken } = require('../middlewares/auth.middleware');
 const transactionService = require('../services/transaction.service');
 const reportService = require('../services/report.service');
 const whatsappService = require('../services/whatsapp.service');
 const paymentService = require('../services/payment.service');
 
 const router = express.Router();
-
-function getRequiredPhone(req, res) {
-  const telefone = getNormalizedPhone(req.query.telefone || '');
-
-  if (!telefone) {
-    res.status(400).json({
-      status: 'erro',
-      mensagem: 'telefone obrigatorio'
-    });
-    return null;
-  }
-
-  return telefone;
-}
 
 router.get('/dashboard', (req, res) => {
   res.sendFile(path.join(appConfig.publicDir, 'dashboard.html'));
@@ -62,7 +49,13 @@ router.get('/dados', asyncHandler(async (req, res) => {
 }));
 
 router.get('/usuarios', asyncHandler(async (req, res) => {
-  // Rota administrativa: manter apenas para uso interno, não usar no dashboard público.
+  if (String(req.query.admin || '') !== '1') {
+    return res.status(403).json({
+      status: 'erro',
+      mensagem: 'acesso negado'
+    });
+  }
+
   const telefone = getNormalizedPhone(req.query.telefone || '');
   const usuarios = await transactionService.getUsers(telefone);
 
@@ -73,10 +66,8 @@ router.get('/usuarios', asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/transacoes', asyncHandler(async (req, res) => {
-  const telefone = getRequiredPhone(req, res);
-  if (!telefone) return;
-  const transacoes = await transactionService.getTransactionsByPhone(telefone);
+router.get('/transacoes', authenticateByToken, asyncHandler(async (req, res) => {
+  const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
 
   return res.json({
     status: 'ok',
@@ -85,14 +76,13 @@ router.get('/transacoes', asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/resumo', asyncHandler(async (req, res) => {
-  const telefone = getRequiredPhone(req, res);
-  if (!telefone) return;
-  const resumo = await transactionService.getSummaryByPhone(telefone);
+router.get('/resumo', authenticateByToken, asyncHandler(async (req, res) => {
+  const resumo = await transactionService.getSummaryByPhone(req.telefone);
 
   return res.json({
     status: 'ok',
-    telefone: telefone || null,
+    telefone: req.telefone || null,
+    usuario: req.usuario || null,
     total_registros: resumo.total_registros,
     entradas: resumo.entradas,
     saidas: resumo.saidas,
@@ -100,12 +90,10 @@ router.get('/resumo', asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/exportar/csv', asyncHandler(async (req, res) => {
-  const telefone = getRequiredPhone(req, res);
-  if (!telefone) return;
-  const transacoes = await transactionService.getTransactionsByPhone(telefone);
+router.get('/exportar/csv', authenticateByToken, asyncHandler(async (req, res) => {
+  const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
   const csv = reportService.generateCsv(transacoes);
-  const fileName = `transacoes_${telefone}.csv`;
+  const fileName = `transacoes_${req.telefone}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -113,23 +101,20 @@ router.get('/exportar/csv', asyncHandler(async (req, res) => {
   return res.send('\uFEFF' + csv);
 }));
 
-router.get('/exportar/csv/:telefone', asyncHandler(async (req, res) => {
-  const telefone = getNormalizedPhone(req.params.telefone);
-  const transacoes = await transactionService.getTransactionsByPhone(telefone);
+router.get('/exportar/csv/:telefone', authenticateByToken, asyncHandler(async (req, res) => {
+  const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
   const csv = reportService.generateCsv(transacoes);
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="transacoes_${telefone}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="transacoes_${req.telefone}.csv"`);
 
   return res.send('\uFEFF' + csv);
 }));
 
-router.get('/exportar/xlsx', asyncHandler(async (req, res) => {
-  const telefone = getRequiredPhone(req, res);
-  if (!telefone) return;
-  const transacoes = await transactionService.getTransactionsByPhone(telefone);
-  const workbook = await reportService.generateExcel(transacoes, telefone);
-  const fileName = `transacoes_${telefone}.xlsx`;
+router.get('/exportar/xlsx', authenticateByToken, asyncHandler(async (req, res) => {
+  const transacoes = await transactionService.getTransactionsByPhone(req.telefone);
+  const workbook = await reportService.generateExcel(transacoes, req.telefone);
+  const fileName = `transacoes_${req.telefone}.xlsx`;
 
   res.setHeader(
     'Content-Type',

@@ -174,25 +174,26 @@
 
     async function carregarDashboard() {
       try {
-        const telefone = new URLSearchParams(window.location.search).get('telefone') || '';
-        const telefoneParam = encodeURIComponent(telefone);
+        const token = new URLSearchParams(window.location.search).get('token') || '';
+        const tokenParam = encodeURIComponent(token);
 
-        if (!telefoneParam) {
-          throw new Error('telefone obrigatorio');
+        if (!tokenParam) {
+          throw new Error('Acesso não autorizado');
         }
 
-        const [usuariosRes, transacoesRes, resumoRes] = await Promise.all([
-          fetch(`/api/usuarios?telefone=${telefoneParam}`),
-          fetch(`/api/transacoes?telefone=${telefoneParam}`),
-          fetch(`/api/resumo?telefone=${telefoneParam}`)
+        const [transacoesRes, resumoRes] = await Promise.all([
+          fetch(`/api/transacoes?token=${tokenParam}`),
+          fetch(`/api/resumo?token=${tokenParam}`)
         ]);
 
-        const usuariosData = await usuariosRes.json();
+        if (!transacoesRes.ok || !resumoRes.ok) {
+          throw new Error('Acesso não autorizado');
+        }
+
         const transacoesData = await transacoesRes.json();
         const resumoData = await resumoRes.json();
 
-        document.getElementById('usuariosTotal').textContent =
-          usuariosData.total_usuarios || 0;
+        document.getElementById('usuariosTotal').textContent = 1;
 
         document.getElementById('entradasTotal').textContent =
           formatarMoeda(resumoData.entradas || 0);
@@ -206,17 +207,16 @@
         const usuariosLista = document.getElementById('usuariosLista');
         usuariosLista.innerHTML = '';
 
-        (usuariosData.usuarios || []).forEach(usuario => {
-          const div = document.createElement('div');
-          div.className = 'item';
-          div.innerHTML = `
-            <strong>${usuario.nome || 'Sem nome'}</strong>
-            <div class="muted">📞 ${usuario.telefone || '-'}</div>
-            <div class="muted">📦 Plano: ${usuario.plano || '-'}</div>
-            <div class="muted">✅ Status: ${usuario.status || '-'}</div>
-          `;
-          usuariosLista.appendChild(div);
-        });
+        const usuario = resumoData.usuario || {};
+        const divUsuario = document.createElement('div');
+        divUsuario.className = 'item';
+        divUsuario.innerHTML = `
+          <strong>${usuario.nome || 'Minha conta'}</strong>
+          <div class="muted">📞 ${usuario.telefone || resumoData.telefone || '-'}</div>
+          <div class="muted">📦 Plano: ${usuario.plano || 'free'}</div>
+          <div class="muted">✅ Status: ${usuario.status || 'ativo'}</div>
+        `;
+        usuariosLista.appendChild(divUsuario);
 
         const transacoesLista = document.getElementById('transacoesLista');
         transacoesLista.innerHTML = '';
@@ -243,7 +243,7 @@
         });
       } catch (error) {
         console.error('Erro ao carregar dashboard:', error);
-        alert('Erro ao carregar dashboard.');
+        alert(error.message === 'Acesso não autorizado' ? 'Acesso não autorizado' : 'Erro ao carregar dashboard.');
       }
     }
 
