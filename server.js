@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { appConfig, hasConfigValue, integrationsConfig } = require('./config');
 const appRoutes = require('./routes');
 const marketingRoutes = require('./marketing/routes');
@@ -10,7 +10,7 @@ function logStartup() {
   console.log('[startup] Iniciando Micro no Controle API');
   console.log(`[startup] Ambiente carregado de ${appConfig.envPath} quando disponivel`);
   console.log(`[startup] Porta configurada: ${appConfig.port}`);
-  console.log(`[startup] Persistencia configurada: ${isMysqlConfigured() ? 'MySQL' : 'dados.json (fallback temporario)'}`);
+  console.log(`[startup] Persistencia configurada: ${isMysqlConfigured() ? 'PostgreSQL' : 'nao configurada'}`);
   console.log(
     `[startup] Integracoes: Z-API=${hasConfigValue(integrationsConfig.zapi.instance) && hasConfigValue(integrationsConfig.zapi.token) && hasConfigValue(integrationsConfig.zapi.clientToken) ? 'configurada' : 'pendente'} | ` +
     `Mercado Pago=${hasConfigValue(integrationsConfig.mercadopago.accessToken) ? 'configurado' : 'pendente'} | ` +
@@ -57,7 +57,7 @@ async function startServer() {
     console.log(`[startup] Servidor rodando na porta ${appConfig.port}`);
     console.log(`[startup] Health principal: http://localhost:${appConfig.port}/api`);
     console.log(`[startup] Health marketing: http://localhost:${appConfig.port}/marketing/health`);
-    console.log(`[startup] Persistencia ativa: ${isMysqlReady() ? 'MySQL' : 'dados.json (fallback temporario)'}`);
+    console.log(`[startup] Persistencia ativa: ${isMysqlReady() ? 'PostgreSQL' : 'nao configurada'}`);
   });
 }
 

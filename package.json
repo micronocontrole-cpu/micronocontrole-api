@@ -4,13 +4,15 @@
   "description": "API do Micro no Controle - SaaS financeiro via WhatsApp",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "db:migrate": "node scripts/migrate.js"
   },
   "dependencies": {
     "axios": "^1.8.1",
     "dotenv": "^17.4.1",
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
-    "mysql2": "^3.11.3"
+    "pg": "^8.13.1"
   }
 }
