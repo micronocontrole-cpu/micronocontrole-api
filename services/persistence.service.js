@@ -1,231 +1,71 @@
-﻿const crypto = require('crypto');
+const crypto = require('crypto');
 const { normalizePhone } = require('../utils/phone');
-const { isMysqlConfigured, testConnection } = require('../db/mysql');
-const legacyJsonRepository = require('../repositories/legacy-json.repository');
-const legacyUsersRepository = require('../repositories/legacy-users.repository');
+
 const usersRepository = require('../repositories/users.repository');
 const transactionsRepository = require('../repositories/transactions.repository');
 const paymentsRepository = require('../repositories/payments.repository');
 
-let mysqlAvailable = false;
+let postgresAvailable = false;
 let migrationAttempted = false;
-
 
 function generateSecureToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function buildUserDefaults(user = {}) {
-  return {
-    telefone: normalizePhone(user.telefone || user.phone || ''),
-    token: String(user.token || '').trim(),
-    nome: user.nome || user.name || '',
-    plano: user.plano === 'premium' ? 'premium' : 'free',
-    status: user.status === 'inativo' ? 'inativo' : 'ativo'
-  };
-}
-
-function ensureLegacyUsersForPhones(phones = [], transactions = []) {
-  const normalizedPhones = [...new Set((phones || []).map(item => normalizePhone(item)).filter(Boolean))];
-  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
-
-  const byPhone = new Map(users.map(user => [user.telefone, user]));
-  let changed = false;
-
-  for (const phone of normalizedPhones) {
-    const existing = byPhone.get(phone) || {};
-    const transactionWithName = transactions.find(item => normalizePhone(item.telefone) === phone && item.nome);
-
-    const normalizedUser = buildUserDefaults({
-      ...existing,
-      telefone: phone,
-      nome: existing.nome || transactionWithName?.nome || ''
-    });
-
-    if (!normalizedUser.token) {
-      normalizedUser.token = generateSecureToken();
-      changed = true;
-    }
-
-    if (!existing.telefone || existing.nome !== normalizedUser.nome || existing.plano !== normalizedUser.plano || existing.status !== normalizedUser.status || existing.token !== normalizedUser.token) {
-      changed = true;
-    }
-
-    byPhone.set(phone, normalizedUser);
-  }
-
-  const result = Array.from(byPhone.values());
-
-  if (changed) {
-    legacyUsersRepository.writeUsers(result);
-  }
-
-  return result;
-}
-
-function normalizeLegacyTransaction(item = {}) {
-  return {
-    telefone: normalizePhone(item.telefone || ''),
-    nome: item.nome || '',
-    mensagem_original: item.mensagem_original || '',
-    tipo: item.tipo || 'outro',
-    valor: Number(item.valor || 0),
-    categoria: item.categoria || 'geral',
-    origem: item.origem || item.source || 'webhook',
-    data: item.data || item.criado_em || null,
-    criado_em: item.data || item.criado_em || null
-  };
-}
-
-function aggregateUsersFromTransactions(transactions = []) {
-  const map = new Map();
-
-  for (const item of transactions) {
-    const phone = normalizePhone(item.telefone || item.phone || '');
-    if (!phone) continue;
-
-    if (!map.has(phone)) {
-      map.set(phone, {
-        telefone: phone,
-        nome: item.nome || '',
-        plano: 'free',
-        status: 'ativo',
-        primeiro_registro: item.data || item.criado_em || null,
-        total_registros: 0
-      });
-    }
-
-    const current = map.get(phone);
-    current.total_registros += 1;
-
-    if (!current.nome && item.nome) {
-      current.nome = item.nome;
-    }
-
-    const createdAt = item.data || item.criado_em || null;
-    if (createdAt && (!current.primeiro_registro || createdAt < current.primeiro_registro)) {
-      current.primeiro_registro = createdAt;
-    }
-  }
-
-  const usersFromTransactions = Array.from(map.values());
-  const usersProfile = ensureLegacyUsersForPhones(
-    usersFromTransactions.map(item => item.telefone),
-    transactions
-  );
-  const profileByPhone = new Map(usersProfile.map(item => [item.telefone, item]));
-
-  return usersFromTransactions.map(user => {
-    const profile = profileByPhone.get(user.telefone) || {};
-
-    return {
-      ...user,
-      nome: profile.nome || user.nome || '',
-      token: profile.token || '',
-      plano: profile.plano || user.plano || 'free',
-      status: profile.status || user.status || 'ativo'
-    };
-  });
+function isPostgresConfigured() {
+  return Boolean(process.env.DATABASE_URL);
 }
 
 async function initPersistence() {
-  if (!isMysqlConfigured()) {
-    console.log('[startup][db] MySQL nao configurado. Fallback temporario: dados.json');
-    mysqlAvailable = false;
+  if (!isPostgresConfigured()) {
+    console.error('[startup][db] DATABASE_URL nao configurada. Configure o PostgreSQL no Railway.');
+    postgresAvailable = false;
     return;
   }
 
   try {
-    await testConnection();
-    mysqlAvailable = true;
-    console.log('[startup][db] MySQL conectado com sucesso');
-    await migrateLegacyJsonIfNeeded();
+    const postgres = require('../db/postgres');
+
+    if (typeof postgres.testConnection === 'function') {
+      await postgres.testConnection();
+    }
+
+    postgresAvailable = true;
+    console.log('[startup][db] PostgreSQL conectado com sucesso');
   } catch (error) {
-    mysqlAvailable = false;
-    console.error('[startup][db] Falha ao conectar no MySQL. Fallback temporario: dados.json');
+    postgresAvailable = false;
+    console.error('[startup][db] Falha ao conectar no PostgreSQL');
     console.error('[startup][db] Detalhe:', error.message || error);
   }
 }
 
 function isMysqlReady() {
-  return mysqlAvailable;
+  // Mantido temporariamente para não quebrar imports antigos.
+  return postgresAvailable;
+}
+
+function isMysqlConfigured() {
+  // Mantido temporariamente para não quebrar imports antigos.
+  return isPostgresConfigured();
 }
 
 async function migrateLegacyJsonIfNeeded() {
-  if (!mysqlAvailable || migrationAttempted) return;
   migrationAttempted = true;
-
-  const existingTransactions = await transactionsRepository.countTransactions();
-  if (existingTransactions > 0) {
-    console.log('[startup][db] Migracao legada ignorada: transactions ja possui dados');
-    return;
-  }
-
-  const legacyTransactions = legacyJsonRepository
-    .readTransactions()
-    .map(normalizeLegacyTransaction)
-    .filter(item => item.telefone);
-
-  if (!legacyTransactions.length) {
-    console.log('[startup][db] Nenhum dado legado encontrado para migracao');
-    return;
-  }
-
-  for (const item of legacyTransactions) {
-    const user = await usersRepository.upsertUserByPhone({
-      phone: item.telefone,
-      name: item.nome || ''
-    });
-
-    await transactionsRepository.createTransaction({
-      userId: user?.id || null,
-      phone: item.telefone,
-      source: item.origem || 'webhook',
-      originalMessage: item.mensagem_original || '',
-      type: item.tipo || 'outro',
-      amount: Number(item.valor || 0),
-      category: item.categoria || 'geral',
-      createdAt: item.data || item.criado_em || null
-    });
-  }
-
-  console.log(`[startup][db] Migracao legada concluida: ${legacyTransactions.length} transacoes importadas do dados.json`);
+  console.log('[startup][db] Migracao JSON desativada. Projeto agora usa PostgreSQL.');
 }
 
 async function listTransactions({ phone = '' } = {}) {
   const normalizedPhone = normalizePhone(phone);
-
-  if (mysqlAvailable) {
-    return transactionsRepository.listTransactions({ phone: normalizedPhone });
-  }
-
-  return legacyJsonRepository
-    .readTransactions()
-    .map(normalizeLegacyTransaction)
-    .filter(item => !normalizedPhone || item.telefone === normalizedPhone);
+  return transactionsRepository.listTransactions({ phone: normalizedPhone });
 }
 
 async function listUsers({ phone = '' } = {}) {
   const normalizedPhone = normalizePhone(phone);
-
-  if (mysqlAvailable) {
-    return usersRepository.listUsers({ phone: normalizedPhone });
-  }
-
-  return aggregateUsersFromTransactions(
-    await listTransactions({ phone: normalizedPhone })
-  );
+  return usersRepository.listUsers({ phone: normalizedPhone });
 }
 
 async function listUserProfiles({ phone = '' } = {}) {
-  const normalizedPhone = normalizePhone(phone);
-  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
-
-  if (!normalizedPhone) {
-    return users;
-  }
-
-  return users.filter(item => item.telefone === normalizedPhone);
+  return listUsers({ phone });
 }
 
 async function updateUserProfileByPhone(phone, changes = {}) {
@@ -235,25 +75,20 @@ async function updateUserProfileByPhone(phone, changes = {}) {
     return null;
   }
 
-  const users = legacyUsersRepository.readUsers().map(buildUserDefaults).filter(item => item.telefone);
-  const index = users.findIndex(item => item.telefone === normalizedPhone);
-
-  if (index === -1) {
-    return null;
+  if (typeof usersRepository.updateUserByPhone === 'function') {
+    return usersRepository.updateUserByPhone(normalizedPhone, changes);
   }
 
-  const current = users[index];
-  const updated = buildUserDefaults({
-    ...current,
-    ...changes,
-    telefone: current.telefone,
-    token: changes.token || current.token
+  const user = await usersRepository.upsertUserByPhone({
+    phone: normalizedPhone,
+    name: changes.nome || changes.name || '',
+    email: changes.email || '',
+    plan: changes.plano || changes.plan,
+    status: changes.status,
+    token: changes.token
   });
 
-  users[index] = updated;
-  legacyUsersRepository.writeUsers(users);
-
-  return updated;
+  return user;
 }
 
 async function regenerateUserTokenByPhone(phone) {
@@ -277,56 +112,49 @@ async function findUserByToken(token = '') {
     return null;
   }
 
+  if (typeof usersRepository.findUserByToken === 'function') {
+    return usersRepository.findUserByToken(normalizedToken);
+  }
+
   const users = await listUsers();
   return users.find(user => user.token === normalizedToken) || null;
 }
 
 async function listUniquePhones() {
-  if (mysqlAvailable) {
-    return transactionsRepository.listUniquePhones();
-  }
-
-  const transactions = await listTransactions();
-  return [...new Set(transactions.map(item => item.telefone).filter(Boolean))];
+  return transactionsRepository.listUniquePhones();
 }
 
 async function createTransaction(data = {}) {
   const normalized = {
-    telefone: normalizePhone(data.telefone || ''),
-    nome: data.nome || '',
-    mensagem_original: data.mensagem_original || '',
-    tipo: data.tipo || 'outro',
-    valor: Number(data.valor || 0),
-    categoria: data.categoria || 'geral',
-    origem: data.origem || 'webhook',
-    data: data.data || null
+    telefone: normalizePhone(data.telefone || data.phone || ''),
+    nome: data.nome || data.name || '',
+    mensagem_original: data.mensagem_original || data.originalMessage || '',
+    tipo: data.tipo || data.type || 'outro',
+    valor: Number(data.valor || data.amount || 0),
+    categoria: data.categoria || data.category || 'geral',
+    origem: data.origem || data.source || 'webhook',
+    data: data.data || data.createdAt || null
   };
 
   if (!normalized.telefone) {
     throw new Error('Telefone e obrigatorio para salvar transacao');
   }
 
-  if (mysqlAvailable) {
-    const user = await usersRepository.upsertUserByPhone({
-      phone: normalized.telefone,
-      name: normalized.nome || ''
-    });
+  const user = await usersRepository.upsertUserByPhone({
+    phone: normalized.telefone,
+    name: normalized.nome || ''
+  });
 
-    await transactionsRepository.createTransaction({
-      userId: user?.id || null,
-      phone: normalized.telefone,
-      source: normalized.origem,
-      originalMessage: normalized.mensagem_original,
-      type: normalized.tipo,
-      amount: normalized.valor,
-      category: normalized.categoria,
-      createdAt: normalized.data
-    });
-
-    return;
-  }
-
-  legacyJsonRepository.appendTransaction(normalized);
+  await transactionsRepository.createTransaction({
+    userId: user?.id || null,
+    phone: normalized.telefone,
+    source: normalized.origem,
+    originalMessage: normalized.mensagem_original,
+    type: normalized.tipo,
+    amount: normalized.valor,
+    category: normalized.categoria,
+    createdAt: normalized.data
+  });
 }
 
 async function savePayment({
@@ -339,17 +167,14 @@ async function savePayment({
   status = 'pending',
   rawPayload = null
 }) {
-  if (!mysqlAvailable) {
-    return;
-  }
-
   const normalizedPhone = normalizePhone(phone || externalReference || '');
+
   const user = normalizedPhone
     ? await usersRepository.upsertUserByPhone({
-      phone: normalizedPhone,
-      name,
-      email
-    })
+        phone: normalizedPhone,
+        name,
+        email
+      })
     : null;
 
   await paymentsRepository.createPayment({
@@ -364,10 +189,6 @@ async function savePayment({
 }
 
 async function registerMercadoPagoWebhook(payload = {}) {
-  if (!mysqlAvailable) {
-    return;
-  }
-
   const paymentId = String(
     payload.data?.id ||
     payload.id ||
@@ -414,8 +235,11 @@ async function registerMercadoPagoWebhook(payload = {}) {
 module.exports = {
   createTransaction,
   initPersistence,
+
+  // nomes antigos mantidos para não quebrar outras partes do projeto
   isMysqlConfigured,
   isMysqlReady,
+
   findUserByToken,
   generateSecureToken,
   listTransactions,
