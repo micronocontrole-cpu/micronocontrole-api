@@ -1,16 +1,18 @@
-const { query } = require('../db/mysql');
+const { query } = require('../db/postgres');
 
 async function fetchAll(sql, params = []) {
-  return query(sql, params);
+  const result = await query(sql, params);
+  return result.rows;
 }
 
 async function fetchOne(sql, params = []) {
-  const rows = await query(sql, params);
-  return rows[0] || null;
+  const result = await query(sql, params);
+  return result.rows[0] || null;
 }
 
 async function execute(sql, params = []) {
-  return query(sql, params);
+  const result = await query(sql, params);
+  return result;
 }
 
 module.exports = {
